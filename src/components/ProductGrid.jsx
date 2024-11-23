@@ -141,12 +141,14 @@ const ProductGrid = () => {
       headerName: "Product",
       flex: 2,
       minWidth: 300,
+      headerAlign: "left",
       renderCell: (params) => (
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
             gap: 2,
+            pl: 2,
             transition: styleConstants.transitions.default,
             "&:hover img": {
               transform: "scale(1.05)",
@@ -173,6 +175,7 @@ const ProductGrid = () => {
               sx={{
                 fontWeight: 500,
                 color: theme.palette.text.primary,
+                mt: -0.5,
               }}
             >
               {params.row.name}
@@ -243,7 +246,14 @@ const ProductGrid = () => {
         );
 
         return (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              mt: 0.5,
+            }}
+          >
             {quantity > 0 ? (
               <>
                 <IconButton
@@ -281,15 +291,26 @@ const ProductGrid = () => {
     },
   ];
 
-  const categories = [
-    "all",
-    ...new Set(
-      items
-        .map((product) => product.main_category)
-        .filter(Boolean)
-        .sort()
-    ),
-  ];
+  const [allCategories, setAllCategories] = useState(["all"]);
+
+  useEffect(() => {
+    const newCategories = [
+      "all",
+      ...new Set(
+        items
+          .map((product) => product.main_category)
+          .filter(Boolean)
+          .sort()
+      ),
+    ];
+
+    setAllCategories((prev) => {
+      const combinedCategories = [...new Set([...prev, ...newCategories])];
+      return combinedCategories.sort();
+    });
+  }, [items]);
+
+  const categories = allCategories;
 
   const totalCartItems = cartItems.reduce(
     (total, item) => total + (item.quantity || 0),
@@ -426,7 +447,7 @@ const ProductGrid = () => {
             paginationMode="server"
             page={page - 1}
             pageSize={pageSize}
-            onPageChange={handlePageChange}
+            onPageChange={(newPage) => handlePageChange(newPage)}
             onPageSizeChange={handlePageSizeChange}
             rowsPerPageOptions={[5, 10, 20, 50]}
             pagination
@@ -465,8 +486,18 @@ const ProductGrid = () => {
                 backgroundColor: styleConstants.colors.headerBg,
                 borderBottom: `1px solid ${styleConstants.colors.gridBorder}`,
               },
+              "& .MuiDataGrid-columnHeader": {
+                paddingLeft: "8px",
+                "&:first-of-type": {
+                  paddingLeft: 0,
+                },
+              },
               "& .MuiDataGrid-cell": {
                 borderBottom: `1px solid ${styleConstants.colors.gridBorder}`,
+                paddingLeft: "8px",
+                "&:first-of-type": {
+                  paddingLeft: 0,
+                },
               },
               "& .MuiDataGrid-footerContainer": {
                 borderTop: `1px solid ${styleConstants.colors.gridBorder}`,

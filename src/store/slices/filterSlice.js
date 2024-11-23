@@ -33,7 +33,7 @@ const filterSlice = createSlice({
       state.category = "all";
       state.sortModel = [];
       state.page = 1;
-      state.pageSize = 10; // Also reset pageSize to initial value
+      state.pageSize = 10;
     },
   },
 });

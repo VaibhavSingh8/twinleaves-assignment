@@ -68,7 +68,7 @@ export const fetchProducts = async (
         );
       }
 
-      if (category !== "all") {
+      if (category && category !== "all") {
         filteredData = filteredData.filter(
           (product) => product.main_category === category
         );
