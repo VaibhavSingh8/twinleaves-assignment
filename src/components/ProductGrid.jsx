@@ -58,17 +58,25 @@ const ProductGrid = () => {
   const { items: cartItems } = useSelector((state) => state.cart);
 
   useEffect(() => {
-    if (page > 0 && pageSize > 0) {
-      dispatch(
-        fetchProducts({
-          page,
-          pageSize,
-          searchTerm: searchTerm || "",
-          category: category || "all",
-          sortModel: sortModel || [],
-        })
-      );
-    }
+    const fetchData = async () => {
+      if (page > 0 && pageSize > 0) {
+        try {
+          await dispatch(
+            fetchProducts({
+              page,
+              pageSize,
+              searchTerm: searchTerm || "",
+              category: category || "all",
+              sortModel: sortModel || [],
+            })
+          );
+        } catch (error) {
+          console.error("Failed to fetch products:", error);
+        }
+      }
+    };
+
+    fetchData();
   }, [dispatch, page, pageSize, searchTerm, category, sortModel]);
 
   const styleConstants = {
@@ -189,6 +197,11 @@ const ProductGrid = () => {
       headerName: "Price",
       flex: 1,
       minWidth: 120,
+      sortable: true,
+      valueGetter: (params) => {
+        if (!params.row) return 0;
+        return params.row.mrp?.mrp || 0;
+      },
       renderCell: (params) => (
         <Box
           sx={{
@@ -217,7 +230,7 @@ const ProductGrid = () => {
       headerName: "Brand",
       flex: 1,
       minWidth: 150,
-      sortable: false,
+      sortable: true,
       disableColumnMenu: true,
       renderCell: (params) => (
         <Chip
@@ -486,8 +499,10 @@ const ProductGrid = () => {
             rowCount={totalCount}
             paginationMode="server"
             sortingMode="server"
+            sortModel={sortModel}
             onSortModelChange={(model) => {
               dispatch(setSortModel(model));
+              dispatch(setPage(1));
             }}
             pageSizeOptions={[5, 10, 25]}
             initialState={{
