@@ -4,7 +4,7 @@ const API_URL = "/api/cms/products";
 
 export const fetchProducts = async (
   page = 1,
-  pageSize = 10,
+  pageSize = 5,
   searchTerm = "",
   category = "all",
   sortModel = []

@@ -7,12 +7,12 @@ const filterSlice = createSlice({
     category: "all",
     sortModel: [],
     page: 1,
-    pageSize: 10,
+    pageSize: 5,
   },
   reducers: {
     setSearchTerm: (state, action) => {
       state.searchTerm = action.payload;
-      state.page = 1; // Reset page when search changes
+      state.page = 1;
     },
     setCategory: (state, action) => {
       state.category = action.payload;
@@ -33,7 +33,7 @@ const filterSlice = createSlice({
       state.category = "all";
       state.sortModel = [];
       state.page = 1;
-      state.pageSize = 10;
+      state.pageSize = 5;
     },
   },
 });

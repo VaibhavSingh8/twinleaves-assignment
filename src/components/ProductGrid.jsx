@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { DataGrid } from "@mui/x-data-grid";
-import { fetchProducts } from "../store/slices/productSlice";
+import {
+  fetchProducts,
+  setSelectedProduct,
+} from "../store/slices/productSlice";
 import {
   setPage,
   setPageSize,
@@ -14,6 +17,7 @@ import {
   addToCart,
   updateQuantity,
   removeFromCart,
+  clearCart,
 } from "../store/slices/cartSlice";
 import {
   Box,
@@ -30,6 +34,8 @@ import {
   Button,
   Chip,
   useTheme,
+  Badge,
+  Drawer,
 } from "@mui/material";
 import {
   ShoppingCart,
@@ -43,6 +49,7 @@ import {
 const ProductGrid = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   const { items, loading, totalCount } = useSelector((state) => state.products);
   const { page, pageSize, searchTerm, category, sortModel } = useSelector(
@@ -122,15 +129,6 @@ const ProductGrid = () => {
     }
   };
 
-  const handlePageChange = (newPage) => {
-    dispatch(setPage(newPage + 1));
-  };
-
-  const handlePageSizeChange = (newPageSize) => {
-    dispatch(setPageSize(newPageSize));
-    dispatch(setPage(1));
-  };
-
   const handleClearFilters = () => {
     dispatch(clearFilters());
   };
@@ -144,11 +142,13 @@ const ProductGrid = () => {
       headerAlign: "left",
       renderCell: (params) => (
         <Box
+          onClick={() => dispatch(setSelectedProduct(params.row))}
           sx={{
             display: "flex",
             alignItems: "center",
             gap: 2,
             pl: 2,
+            cursor: "pointer",
             transition: styleConstants.transitions.default,
             "&:hover img": {
               transform: "scale(1.05)",
@@ -253,12 +253,16 @@ const ProductGrid = () => {
               gap: 1,
               mt: 0.5,
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             {quantity > 0 ? (
               <>
                 <IconButton
                   size="small"
-                  onClick={() => handleUpdateQuantity(params.row, -1)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleUpdateQuantity(params.row, -1);
+                  }}
                   color="primary"
                 >
                   <Remove />
@@ -268,7 +272,10 @@ const ProductGrid = () => {
                 </Typography>
                 <IconButton
                   size="small"
-                  onClick={() => handleUpdateQuantity(params.row, 1)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleUpdateQuantity(params.row, 1);
+                  }}
                   color="primary"
                 >
                   <Add />
@@ -277,7 +284,10 @@ const ProductGrid = () => {
             ) : (
               <Tooltip title="Add to Cart">
                 <IconButton
-                  onClick={() => handleAddToCart(params.row)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAddToCart(params.row);
+                  }}
                   color="primary"
                   size="small"
                 >
@@ -317,6 +327,30 @@ const ProductGrid = () => {
     0
   );
 
+  const cartColumns = [
+    {
+      field: "name",
+      headerName: "Product",
+      flex: 2,
+    },
+    {
+      field: "quantity",
+      headerName: "Quantity",
+      flex: 1,
+    },
+    {
+      field: "mrp",
+      headerName: "Price",
+      flex: 1,
+      renderCell: (params) => `₹${params.row.mrp?.mrp?.toFixed(2) || 0}`,
+    },
+  ];
+
+  const totalAmount = cartItems.reduce(
+    (sum, item) => sum + item.quantity * (item.mrp?.mrp || 0),
+    0
+  );
+
   return (
     <Card
       elevation={3}
@@ -348,9 +382,21 @@ const ProductGrid = () => {
           >
             Product Catalog
           </Typography>
-          <Tooltip title={`Cart Items: ${totalCartItems}`}>
+          <Badge
+            badgeContent={totalCartItems}
+            color="primary"
+            sx={{
+              "& .MuiBadge-badge": {
+                right: 2,
+                top: 2,
+                border: `2px solid ${theme.palette.background.paper}`,
+                padding: "0 4px",
+              },
+            }}
+          >
             <IconButton
               color="primary"
+              onClick={() => setIsCartOpen(true)}
               sx={{
                 "&:hover": {
                   backgroundColor: styleConstants.colors.hoverBg,
@@ -358,22 +404,8 @@ const ProductGrid = () => {
               }}
             >
               <ShoppingCart />
-              {totalCartItems > 0 && (
-                <Chip
-                  label={totalCartItems}
-                  size="small"
-                  color="primary"
-                  sx={{
-                    position: "absolute",
-                    top: -5,
-                    right: -5,
-                    minWidth: 20,
-                    height: 20,
-                  }}
-                />
-              )}
             </IconButton>
-          </Tooltip>
+          </Badge>
         </Box>
 
         <Box
@@ -438,77 +470,141 @@ const ProductGrid = () => {
           )}
         </Box>
 
-        <Box sx={{ height: 600, width: "100%" }}>
+        <Box
+          sx={{
+            width: "100%",
+            height:
+              items.length > 0
+                ? `${Math.min(800, 100 + items.length * 54)}px`
+                : "400px",
+          }}
+        >
           <DataGrid
             rows={items || []}
             columns={columns}
             loading={loading}
             rowCount={totalCount}
             paginationMode="server"
-            page={page - 1}
-            pageSize={pageSize}
-            onPageChange={(newPage) => handlePageChange(newPage)}
-            onPageSizeChange={handlePageSizeChange}
-            rowsPerPageOptions={[5, 10, 20, 50]}
-            pagination
-            checkboxSelection
-            disableRowSelectionOnClick
-            sortModel={sortModel}
+            sortingMode="server"
             onSortModelChange={(model) => {
               dispatch(setSortModel(model));
-              dispatch(setPage(1));
             }}
+            pageSizeOptions={[5, 10, 25]}
+            initialState={{
+              pagination: {
+                paginationModel: {
+                  pageSize: pageSize,
+                  page: page - 1,
+                },
+              },
+            }}
+            onPaginationModelChange={(model) => {
+              dispatch(setPage(model.page + 1));
+              if (model.pageSize !== pageSize) {
+                dispatch(setPageSize(model.pageSize));
+              }
+            }}
+            checkboxSelection
+            disableRowSelectionOnClick={false}
             getRowId={(row) => row.sku_code || row.gtin || row.id}
-            components={{
-              NoRowsOverlay: () => (
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    height: "100%",
-                  }}
-                >
-                  <Typography>No products found</Typography>
-                </Box>
-              ),
-            }}
             sx={{
               border: "none",
               "& .MuiDataGrid-cell:focus": {
                 outline: "none",
               },
-              "& .MuiDataGrid-row:hover": {
-                backgroundColor: styleConstants.colors.hoverBg,
-                cursor: "pointer",
-              },
               "& .MuiDataGrid-columnHeaders": {
                 backgroundColor: styleConstants.colors.headerBg,
                 borderBottom: `1px solid ${styleConstants.colors.gridBorder}`,
               },
-              "& .MuiDataGrid-columnHeader": {
-                paddingLeft: "8px",
-                "&:first-of-type": {
-                  paddingLeft: 0,
-                },
-              },
-              "& .MuiDataGrid-cell": {
-                borderBottom: `1px solid ${styleConstants.colors.gridBorder}`,
-                paddingLeft: "8px",
-                "&:first-of-type": {
-                  paddingLeft: 0,
-                },
-              },
-              "& .MuiDataGrid-footerContainer": {
-                borderTop: `1px solid ${styleConstants.colors.gridBorder}`,
-              },
-              "& .MuiCheckbox-root": {
-                color: theme.palette.primary.main,
+              "& .MuiDataGrid-row": {
+                cursor: "default",
               },
             }}
           />
         </Box>
       </CardContent>
+      <Drawer
+        anchor="right"
+        open={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        sx={{
+          "& .MuiDrawer-paper": {
+            width: { xs: "100%", sm: 400 },
+            padding: 2,
+          },
+        }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+            }}
+          >
+            <Typography variant="h6">Shopping Cart</Typography>
+            <IconButton onClick={() => setIsCartOpen(false)}>
+              <Clear />
+            </IconButton>
+          </Box>
+
+          {cartItems.length > 0 ? (
+            <>
+              <Box sx={{ height: "calc(100vh - 280px)", width: "100%" }}>
+                <DataGrid
+                  rows={cartItems}
+                  columns={cartColumns}
+                  pageSize={5}
+                  rowsPerPageOptions={[5]}
+                  disableSelectionOnClick
+                  getRowId={(row) => row.cartId || row.sku_code || row.gtin}
+                />
+              </Box>
+
+              <Box
+                sx={{
+                  position: "sticky",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  p: 2,
+                  borderTop: 1,
+                  borderColor: "divider",
+                  bgcolor: "background.paper",
+                  mt: 2,
+                }}
+              >
+                <Typography variant="h6" gutterBottom>
+                  Total: ₹{totalAmount.toFixed(2)}
+                </Typography>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  color="primary"
+                  onClick={() => {
+                    dispatch(clearCart());
+                    setIsCartOpen(false);
+                  }}
+                >
+                  Place Order
+                </Button>
+              </Box>
+            </>
+          ) : (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                height: "100%",
+              }}
+            >
+              <Typography>Your cart is empty</Typography>
+            </Box>
+          )}
+        </Box>
+      </Drawer>
     </Card>
   );
 };
